@@ -1,98 +1,109 @@
-# WanderBot - AI Trip Planner
+# 🌍 WanderBot: Multi-Agent Travel Planner
 
-WanderBot is an intelligent, agentic travel planning application that helps users plan their trips effortlessly. It leverages a modern tech stack combining a FastAPI backend, a Streamlit frontend, and an advanced LangGraph-based agentic workflow. The AI agent utilizes various tools to gather weather information, search for places, calculate expenses, and convert currencies to provide a comprehensive and detailed travel plan.
+WanderBot is a highly sophisticated, multi-agent travel planning system built on **LangGraph**. By coordinating a team of specialized AI agents, WanderBot handles the complex logistics of building a personalized itinerary—researching places, checking weather, calculating accurate budgets, and verifying constraints through a rigid critique/reflection loop.
 
-## Features
+It features long-term memory (ChromaDB) for personalized trip context, strict Pydantic schemas for structured data output, and Server-Sent Events (SSE) for a real-time, responsive Streamlit dashboard.
 
-- **Agentic Workflow**: Built using LangGraph, the AI agent can dynamically decide which tools to use to fulfill the user's travel query.
-- **Weather Information**: Retrieves current weather and forecasts using OpenWeatherMap.
-- **Place Search**: Uses Tavily search to find attractions, restaurants, activities, and transportation options for any destination.
-- **Expense Calculator**: Built-in tool for the agent to estimate trip expenses.
-- **Currency Conversion**: Converts currencies to help plan international trips.
-- **Interactive UI**: A clean and simple Streamlit interface for users to enter their travel queries.
-- **RESTful API**: A FastAPI backend that handles the query processing and interacts with the LLM.
+---
 
-## Tech Stack
+## 🏗️ Architecture
 
-- **Backend**: FastAPI, Uvicorn
-- **Frontend**: Streamlit
-- **AI/LLM**: LangChain, LangGraph, Groq (default), OpenAI (optional)
-- **Search & Tools**: Tavily Search API, OpenWeatherMap API
+WanderBot operates on a **Supervisor-Worker** architectural pattern using LangGraph. The Supervisor dynamically routes tasks based on the current system state, ensuring strict business rules (e.g. running the Critic reflection loop). If API rate limits are hit (e.g. Groq 429s), the system seamlessly falls back to Gemini 2.0 Flash.
 
-## Project Structure
-
+```text
+                        +-------------------+
+                        |   User Request    |
+                        +---------+---------+
+                                  |
+                                  v
+                        +-------------------+
+             +--------> |  SUPERVISOR AGENT | <---------+
+             |          +---------+---------+           |
+             |                    |                     |
+             v                    v                     v
+   +-------------------+  +-------------------+  +-------------------+
+   | PreferenceExtract |  |   WeatherAgent    |  |   ResearchAgent   |
+   | (Extracts context |  | (Live OpenWeather |  | (Tavily/Foursquare|
+   |  & ChromaDB RAG)  |  |  or fallbacks)    |  |  places search)   |
+   +---------+---------+  +---------+---------+  +---------+---------+
+             |                    |                     |
+             +--------------------+---------------------+
+                                  |
+                                  v
+   +-------------------+  +-------------------+  +-------------------+
+   |   BudgetAgent     |  |  ItineraryAgent   |  |   CriticAgent     |
+   | (Math calculators |->| (Synthesizes all  |->| (Reflection loop: |
+   |  & FX converters) |  |  data into days)  |  |  Scores < 7.0     |
+   +---------+---------+  +-------------------+  |  trigger rework)  |
+                                                 +---------+---------+
+                                                           |
+                        +-------------------+              |
+                        | FINAL TRAVEL PLAN | <------------+
+                        +-------------------+
 ```
-AI_Trip_Planner/
-├── agent/
-│   └── agentic_workflow.py    # LangGraph agent setup and logic
-├── config/                    # Configuration loaders
-├── env/                       # Environment utilities
-├── exception/                 # Custom exceptions
-├── logger/                    # Logging utilities
-├── prompt_library/            # System prompts for the AI agent
-├── tools/                     # LangChain tools for the agent
-│   ├── arithmetic_op_tool.py
-│   ├── currency_conversion_tool.py
-│   ├── expense_calculator_tool.py
-│   ├── place_search_tool.py
-│   └── weather_info_tool.py
-├── utils/                     # Utility functions (Model loader, API wrappers, etc.)
-├── main.py                    # FastAPI application entry point
-├── streamlit_app.py           # Streamlit frontend application
-├── requirements.txt           # Python dependencies
-└── pyproject.toml             # Project metadata
-```
 
-## Setup & Installation
+*(You can also dynamically render the LangGraph mermaid flowchart by running the backend and visiting `GET /graph`)*
 
-1. **Clone the repository:**
+---
+
+## ✨ Key Features
+- **Intelligent Orchestration:** LangGraph supervisor controls state, deciding which agent executes next based on extracted requirements.
+- **Automated Critique Loop:** The `CriticAgent` evaluates itineraries on 4 dimensions (Logical flow, Budget, Weather, Preferences) and triggers automatic revisions if the score is below 7.0/10.
+- **Robust LLM Fallback Mechanism:** Custom `FallbackLLMWrapper` automatically intercepts Groq 429 rate limit errors and re-routes exactly to Google Gemini without losing context.
+- **Long-Term Memory:** Uses ChromaDB to remember your past preferences across multiple sessions (e.g., "I prefer luxury travel").
+- **Live SSE Streaming UI:** The Streamlit frontend beautifully streams the backend LangGraph execution node-by-node in real-time.
+- **External Tools:** Real-time calculators, currency converters, and web-search APIs.
+
+---
+
+## 🛠️ Tech Stack
+- **Frameworks:** LangGraph, LangChain, FastAPI, Streamlit
+- **LLMs:** Groq (`llama-3.3-70b-versatile`), Google Generative AI (`gemini-2.0-flash`)
+- **Memory & State:** ChromaDB, `MemorySaver` (LangGraph Short-Term State)
+- **Data Validation:** Pydantic (Strict structured LLM outputs)
+- **Tools:** Tavily Search, OpenWeatherMap, API Ninjas Exchange Rate
+
+---
+
+## 🚀 Setup Instructions
+
+1. **Clone the Repository**
    ```bash
-   git clone <repository-url>
-   cd AI_Trip_Planner
+   git clone https://github.com/yourusername/WanderBot.git
+   cd WanderBot
    ```
 
-2. **Create a virtual environment:**
+2. **Setup Python Environment**
    ```bash
-   python -m venv .venv
-   ```
-   Activate the virtual environment:
-   - On Windows: `.venv\Scripts\activate`
-   - On macOS/Linux: `source .venv/bin/activate`
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
+   uv venv
+   # Activate your virtual environment (.venv/Scripts/activate on Windows)
+   uv pip install -r requirements.txt
    ```
 
-4. **Environment Variables:**
-   Create a `.env` file in the root directory and add your API keys:
+3. **Configure Environment Variables**
+   Create a `.env` file in the root directory:
    ```env
-   GROQ_API_KEY=your_groq_api_key_here
-   TAVILY_API_KEY=your_tavily_api_key_here
-   OPENWEATHERMAP_API_KEY=your_openweather_api_key_here
-   # OPENAI_API_KEY=your_openai_api_key_here (if using OpenAI)
+   GROQ_API_KEY="your_groq_api_key"
+   GOOGLE_API_KEY="your_gemini_api_key"
+   TAVILAY_API_KEY="your_tavily_api_key"
+   OPENWEATHERMAP_API_KEY="your_openweathermap_api_key"
+   EXCHANGE_RATE_API_KEY="your_exchange_api_key"
    ```
 
-## Running the Application
+4. **Run the Backend (FastAPI)**
+   ```bash
+   uvicorn main:app --reload
+   ```
 
-To run the application, you need to start both the FastAPI backend and the Streamlit frontend.
+5. **Run the Frontend (Streamlit)**
+   Open a new terminal window:
+   ```bash
+   uv run streamlit run streamlit_app.py
+   ```
 
-### 1. Start the FastAPI Backend
-Run the following command in your terminal:
-```bash
-uvicorn main:app --reload
-```
-The backend will start running at `http://localhost:8000`.
+---
 
-### 2. Start the Streamlit Frontend
-Open a new terminal window, activate your virtual environment, and run:
-```bash
-streamlit run streamlit_app.py
-```
-The frontend will open in your default browser (usually at `http://localhost:8501`).
-
-## Usage Example
-1. Go to the Streamlit app in your browser.
-2. In the input box, type a query like: *"Plan a trip to Goa for 5 days."*
-3. Click **Send**.
-4. WanderBot will use its agentic workflow to search for places, check the weather, and estimate expenses to return a detailed markdown-formatted travel plan.
+## 💬 Example Queries
+- *"Plan a 5-day luxury trip to Paris in October. I love art history and fine dining. My budget is $5,000 USD."*
+- *"I'm going to Tokyo for 3 days next week. I need a tight budget itinerary focusing entirely on anime and street food."*
+- *"Book a relaxing weekend getaway in Malibu. (The system will remember your previous preferences if stored!)"*
