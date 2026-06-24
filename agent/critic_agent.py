@@ -31,13 +31,14 @@ def critic_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
         logger.warning("No itinerary found to critique.")
         return {"critic_review": CriticReview(
             overall_score=0.0,
-            requires_revision=True,
+            requires_revision=False,   # Don't loop — itinerary generation itself failed
             logical_flow_score=0,
-            budget_adherence_score=0,
-            weather_safety_score=0,
+            budget_alignment_score=0,
+            weather_suitability_score=0,
             preference_match_score=0,
-            revision_instructions=["Itinerary is empty. Generate a complete itinerary."]
-        )}
+            warnings=["ItineraryAgent failed to generate an itinerary. Please try again."],
+            revision_instructions=[]
+        ), "completed_agents": ["CriticAgent"]}
     
     def build_chain(llm):
         return llm.with_structured_output(CriticReview)
@@ -68,7 +69,7 @@ def critic_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
         else:
             final_response.requires_revision = False
             
-        return {"critic_review": final_response}
+        return {"critic_review": final_response, "completed_agents": ["CriticAgent"]}
         
     except Exception as e:
         logger.error(f"CriticAgent failed: {e}")
@@ -77,8 +78,8 @@ def critic_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
             overall_score=7.5,
             requires_revision=False,
             logical_flow_score=8,
-            budget_adherence_score=8,
-            weather_safety_score=8,
+            budget_alignment_score=8,
+            weather_suitability_score=8,
             preference_match_score=8,
             warnings=["Critic agent encountered an error. Validation bypassed."]
-        )}
+        ), "completed_agents": ["CriticAgent"]}

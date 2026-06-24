@@ -3,8 +3,8 @@ Pydantic schemas for the WanderBot multi-agent system.
 Defines all structured inputs and outputs for the agents.
 """
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Dict, Union
 from datetime import datetime
 
 class UserPreferences(BaseModel):
@@ -25,9 +25,16 @@ class Place(BaseModel):
     name: str = Field(description="Name of the place.")
     description: str = Field(description="Short description of the place.", default="No description provided.")
     category: str = Field(description="Category, e.g., 'attraction', 'activity', 'park'.", default="attraction")
-    entry_fee: str = Field(description="Estimated entry fee, including currency.", default="Unknown")
+    entry_fee: Union[str, float, int] = Field(description="Estimated entry fee. Use 'Free' for free places or a number like 50 for paid ones.", default="Unknown")
     recommended_duration_hours: float = Field(description="Recommended hours to spend here.", default=1.0)
     best_time_to_visit: str = Field(description="Best time of day or season to visit.", default="Anytime")
+
+    @field_validator("entry_fee", mode="before")
+    @classmethod
+    def coerce_entry_fee_to_str(cls, v: Union[str, float, int]) -> str:
+        if isinstance(v, (int, float)):
+            return "Free" if v == 0 else f"₹{int(v)}"
+        return str(v)
 
 class Restaurant(BaseModel):
     """Structured data for a restaurant or food place."""
@@ -71,7 +78,14 @@ class MealInfo(BaseModel):
     """Information for a planned meal."""
     meal_type: str = Field(description="Breakfast, Lunch, or Dinner.")
     restaurant_name: str = Field(description="Name of the suggested restaurant.")
-    estimated_cost: str = Field(description="Estimated cost of the meal.")
+    estimated_cost: Union[str, float, int] = Field(description="Estimated cost of the meal. Can be a number like 300 or a string like '300 INR'.")
+
+    @field_validator("estimated_cost", mode="before")
+    @classmethod
+    def coerce_meal_cost_to_str(cls, v: Union[str, float, int]) -> str:
+        if isinstance(v, (int, float)):
+            return f"₹{int(v)}"
+        return str(v)
 
 class AttractionVisit(BaseModel):
     """Information for a planned attraction visit."""
@@ -81,7 +95,14 @@ class AttractionVisit(BaseModel):
 class Transport(BaseModel):
     """Information for local transport."""
     mode: str = Field(description="Mode of transport, e.g., 'Taxi', 'Metro', 'Walking'.")
-    estimated_cost: str = Field(description="Estimated cost of the transport.")
+    estimated_cost: Union[str, float, int] = Field(description="Estimated cost of transport. Can be a number like 200 or a string like '200 INR'.")
+
+    @field_validator("estimated_cost", mode="before")
+    @classmethod
+    def coerce_transport_cost_to_str(cls, v: Union[str, float, int]) -> str:
+        if isinstance(v, (int, float)):
+            return "Free" if v == 0 else f"₹{int(v)}"
+        return str(v)
 
 class DayPlan(BaseModel):
     """A fully planned itinerary for a single day."""
@@ -92,7 +113,20 @@ class DayPlan(BaseModel):
     attractions: List[AttractionVisit] = Field(description="List of attractions to visit.")
     activities: List[str] = Field(description="List of other activities or leisure time.", default_factory=list)
     transport: Transport = Field(description="Primary transport for the day.")
-    estimated_day_cost: float = Field(description="Estimated total cost for this specific day.")
+    estimated_day_cost: float = Field(description="Estimated total cost for this specific day as a plain number (e.g. 2800), no currency symbol or unit.")
+
+    @field_validator("estimated_day_cost", mode="before")
+    @classmethod
+    def coerce_cost_to_float(cls, v: Union[str, float, int]) -> float:
+        """Accept strings like '2800 INR' or '₹2800' and coerce them to a float."""
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            # Strip everything that is not a digit or a decimal point
+            cleaned = "".join(ch for ch in v if ch.isdigit() or ch == ".")
+            if cleaned:
+                return float(cleaned)
+        raise ValueError(f"Cannot parse '{v}' as a numeric cost.")
 
 class CriticReview(BaseModel):
     """Review and scoring of the generated itinerary."""

@@ -16,8 +16,6 @@ st.set_page_config(
 
 st.title("🌍 WanderBot 2.0")
 
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = str(uuid.uuid4())
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -36,6 +34,10 @@ for msg in st.session_state.messages:
 user_input = st.chat_input("Where to next? (e.g., Plan a 5-day luxury trip to Paris)")
 
 if user_input:
+    # Always generate a fresh thread_id so new queries never inherit stale
+    # LangGraph checkpointer state from a previous conversation.
+    fresh_thread_id = str(uuid.uuid4())
+
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -46,7 +48,7 @@ if user_input:
         
         payload = {
             "question": user_input,
-            "thread_id": st.session_state.thread_id,
+            "thread_id": fresh_thread_id,
             "remember_me": True
         }
         

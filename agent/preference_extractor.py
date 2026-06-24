@@ -18,13 +18,27 @@ def preference_extractor_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Checks ChromaDB for long-term user context and injects it into the prompt.
     """
     logger.info("PreferenceExtractor Agent started.")
-    user_query = state.get("query", "")
+    user_query = state.get("query", "").strip()
     user_id = state.get("user_id", "default_user")
+
+    # If query is empty, try pulling the last human message from the messages list
+    if not user_query:
+        messages_list = state.get("messages", [])
+        for msg in reversed(messages_list):
+            content = getattr(msg, "content", "") if hasattr(msg, "content") else str(msg)
+            if content and content.strip():
+                user_query = content.strip()
+                logger.info("Pulled user query from messages list as state.query was empty.")
+                break
+
+    if not user_query:
+        user_query = "Plan a trip"  # absolute last-resort default so Gemini never gets empty content
+        logger.warning("user_query was empty after all fallbacks; using placeholder.")
 
     # Step 1: Retrieve context from Long Term Memory
     try:
         memory = LongTermMemory()
-        past_context = memory.retrieve_preferences(user_id=user_id, current_query=user_query)
+        past_context = memory.retrieve_past_trips(query=user_query)
         logger.info("Successfully retrieved past context from ChromaDB.")
     except Exception as e:
         logger.warning(f"Failed to retrieve long term memory: {e}")
@@ -43,14 +57,10 @@ def preference_extractor_node(state: Dict[str, Any]) -> Dict[str, Any]:
         # Step 2: Extract preferences
         response = invoke_with_fallback(build_chain, messages)
         
-        # Step 3: Save the new query to Long Term Memory
-        try:
-            memory.save_preference(user_id=user_id, query=user_query, structured_prefs=response.model_dump())
-        except Exception as e:
-            logger.warning(f"Failed to save long term memory: {e}")
+        # Step 3: Saving to Long Term Memory is handled centrally in main.py
             
         logger.info(f"Successfully extracted preferences for destination: {response.destination}")
-        return {"preferences": response}
+        return {"preferences": response, "completed_agents": ["PreferenceExtractor"]}
     
     except Exception as e:
         logger.error(f"LLM failed to generate structured UserPreferences: {e}")
@@ -62,4 +72,4 @@ def preference_extractor_node(state: Dict[str, Any]) -> Dict[str, Any]:
             budget_currency="USD",
             total_budget=0.0
         )
-        return {"preferences": fallback_prefs}
+        return {"preferences": fallback_prefs, "completed_agents": ["PreferenceExtractor"]}

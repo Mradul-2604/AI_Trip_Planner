@@ -77,7 +77,7 @@ def budget_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
             final_response = invoke_with_fallback(build_structured_chain, messages)
             
         logger.info(f"Budget calculated. Total: {final_response.total_estimated}")
-        return {"budget_breakdown": final_response}
+        return {"budget_breakdown": final_response, "completed_agents": ["BudgetAgent"]}
         
     except Exception as e:
         logger.error(f"BudgetAgent failed: {e}")
@@ -88,4 +88,4 @@ def budget_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
             categories=[],
             is_within_budget=True,
             adjustment_suggestions=["Error calculating budget. Please verify manually."]
-        )}
+        ), "completed_agents": ["BudgetAgent"]}

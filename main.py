@@ -87,11 +87,12 @@ async def plan_trip_stream(request: PlanRequest):
             yield format_sse_event("running", "System", "Starting WanderBot workflow...", data={"thread_id": thread_id})
             
             # Stream events as nodes complete
-            final_state = None
             for event in graph.stream({"messages": [request.question]}, config=config):
                 for node_name, node_state in event.items():
-                    final_state = node_state
                     yield format_sse_event("running", node_name, f"{node_name} completed processing.", data=None)
+            
+            # Get the FULL merged state after all nodes have run
+            final_state = graph.get_state(config).values
             
             # After complete, save to long term memory
             if final_state and request.remember_me and "preferences" in final_state and final_state["preferences"]:

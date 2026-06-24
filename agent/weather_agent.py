@@ -25,8 +25,7 @@ def weather_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     
     human_content = (
         f"Destination: {preferences.destination}\n"
-        f"Start Date: {preferences.start_date}\n"
-        f"End Date: {preferences.end_date}\n"
+        f"Travel Dates: {preferences.travel_dates or 'Not specified'}\n"
     )
     
     messages = [
@@ -36,17 +35,17 @@ def weather_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     
     try:
         final_response = invoke_with_fallback(build_chain, messages)
-        logger.info(f"Weather info generated. Condition: {final_response.general_condition}")
-        return {"weather_info": final_response}
+        logger.info(f"Weather info generated. Condition: {final_response.conditions}")
+        return {"weather_info": final_response, "completed_agents": ["WeatherAgent"]}
         
     except Exception as e:
         logger.error(f"WeatherAgent failed: {e}")
         return {"weather_info": WeatherInfo(
-            temperature_high=0,
-            temperature_low=0,
-            precipitation_chance=0,
-            general_condition="Unknown",
-            clothing_recommendations=["Check local forecast"],
+            summary="Weather data unavailable.",
+            temperature_range="Unknown",
+            conditions="Unknown",
+            packing_suggestions=["Check local forecast"],
+            travel_warnings=[],
             data_source="llm_fallback",
             fallback_used=True
-        )}
+        ), "completed_agents": ["WeatherAgent"]}

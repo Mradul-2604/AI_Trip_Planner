@@ -28,20 +28,12 @@ def research_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     preferences = state.get("preferences")
     if not preferences:
         logger.warning("No preferences found in state. Skipping research.")
-        return {"research_data": {"places": [], "restaurants": []}}
+        return {"research_data": {"places": [], "restaurants": []}, "failed_agents": ["ResearchAgent"]}
 
     def build_chain(llm):
-        # We bind the tools to the LLM
-        search_tools = PlaceSearchTool().place_tool_list
-        llm_with_tools = llm.bind_tools(search_tools)
-        # We need an agent executor pattern, or we can just ask the LLM to output the structured data
-        # Actually, if we just want structured output but need tools... 
-        # A simple approach for this function is to let the LLM use tools, get the results, then parse.
-        # But wait, invoke_with_fallback takes a single chain builder.
-        # To keep it simple, we just use structured output directly, letting the LLM hallucinate or use its internal knowledge if we don't have a complex agent loop.
-        # The prompt says "Uses the existing place_search_tool.py... Makes 3 targeted Tavily searches"
-        # Since this is a simple rewrite, we just use structured_output.
-        return llm.with_structured_output(ResearchOutput)
+        # PlaceSearchTool exposes tools via .place_search_tool_list (not .place_tool_list)
+        search_tools = PlaceSearchTool().place_search_tool_list
+        return llm.bind_tools(search_tools).with_structured_output(ResearchOutput)
         
     human_content = (
         f"Destination: {preferences.destination}\n"
@@ -64,8 +56,13 @@ def research_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "research_data": {
                 "places": [p.model_dump() for p in final_response.places],
                 "restaurants": [r.model_dump() for r in final_response.restaurants]
-            }
+            },
+            "completed_agents": ["ResearchAgent"]
         }
     except Exception as e:
         logger.error(f"ResearchAgent failed: {e}")
-        return {"research_data": {"places": [], "restaurants": []}}
+        # Mark as failed so the supervisor never routes here again
+        return {
+            "research_data": {"places": [], "restaurants": []},
+            "failed_agents": ["ResearchAgent"]
+        }
