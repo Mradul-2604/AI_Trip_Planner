@@ -34,6 +34,22 @@ export default function DayCard({ day, index }) {
     return '🌙'
   }
 
+  const extractNumber = (str) => {
+    if (!str) return 0;
+    if (typeof str === 'number') return str;
+    const match = String(str).match(/[\d,.]+/);
+    if (match) {
+      return parseFloat(match[0].replace(/,/g, ''));
+    }
+    return 0;
+  }
+
+  const calculatedTotal = 
+    extractNumber(hotel?.price_per_night) +
+    attractions.reduce((sum, attr) => sum + extractNumber(attr.place?.entry_fee), 0) +
+    meals.reduce((sum, m) => sum + extractNumber(m.estimated_cost), 0) +
+    extractNumber(transport?.estimated_cost);
+
   return (
     <div
       className="day-card fade-in-up"
@@ -51,7 +67,7 @@ export default function DayCard({ day, index }) {
           </div>
         </div>
         <div className="day-header-right">
-          <span className="day-cost">₹{Number(estimated_day_cost).toLocaleString()}</span>
+          <span className="day-cost">₹{calculatedTotal.toLocaleString()}</span>
           <span className={`chevron ${open ? 'open' : ''}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

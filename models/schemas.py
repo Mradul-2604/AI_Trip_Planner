@@ -47,10 +47,22 @@ class Restaurant(BaseModel):
 class Hotel(BaseModel):
     """Structured data for accommodation."""
     name: str = Field(description="Name of the hotel.")
-    stars: str = Field(description="Star rating or category of the hotel.")
-    price_per_night: str = Field(description="Estimated price per night.")
+    stars: Union[str, int, float] = Field(description="Star rating or category of the hotel.")
+    price_per_night: Union[str, float, int] = Field(description="Estimated price per night.")
     amenities: List[str] = Field(description="List of key amenities.", default_factory=list)
     description: str = Field(description="Short description of the accommodation.")
+
+    @field_validator("price_per_night", mode="before")
+    @classmethod
+    def coerce_price_to_str(cls, v: Union[str, float, int]) -> str:
+        if isinstance(v, (int, float)):
+            return f"₹{int(v)}"
+        return str(v)
+
+    @field_validator("stars", mode="before")
+    @classmethod
+    def coerce_stars_to_str(cls, v: Union[str, float, int]) -> str:
+        return str(v)
 
 class WeatherInfo(BaseModel):
     """Structured weather information for the destination."""
