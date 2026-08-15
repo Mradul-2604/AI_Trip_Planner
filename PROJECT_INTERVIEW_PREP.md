@@ -369,9 +369,9 @@ graph TD
 | UI timeouts on long generation (45-90s) | Sync HTTP connection held open | Switched to SSE via `StreamingResponse` |
 | Infinite routing loops in dynamic architecture | LLM router forgot completed agents | Refactored to deterministic linear pipeline |
 
-### Known Inconsistency (interviewer trap)
-- `critic_prompt.py` says: `requires_revision=true if overall_score < 7.0 OR any score < 5.0`
-- `critic_agent_node` code: only checks `overall_score < 7.0` — the individual score rule is **not enforced in code**
+### Resolved Inconsistency (Previously an Interview Trap)
+- **Previous Issue**: `critic_prompt.py` specified `requires_revision=true if overall_score < 7.0 OR any score < 5.0`, but `critic_agent_node` only checked `overall_score < 7.0`.
+- **Resolution**: `critic_agent_node` now programmatically checks **both** conditions (`overall_score < 7.0 or any(score < 5.0)`), guaranteeing that a critical failure in any single dimension (e.g. Budget Alignment = 4.0) triggers a revision loop even if the average score remains high.
 
 ### Dead Code
 - `tools/arithmetic_op_tool.py`: standalone multiply, add, currency_converter (using AlphaVantage) — **not imported by any agent**

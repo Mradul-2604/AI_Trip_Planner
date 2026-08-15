@@ -62,10 +62,22 @@ def critic_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
         final_response = invoke_with_fallback(build_chain, messages)
         logger.info(f"Critic Review complete. Score: {final_response.overall_score}/10")
         
-        # Determine if revision is needed (enforce business rule)
-        if final_response.overall_score < 7.0:
+        # Determine if revision is needed (enforce business rule: overall_score < 7.0 OR any individual score < 5.0)
+        has_subscore_failure = any(
+            score < 5.0 for score in [
+                final_response.logical_flow_score,
+                final_response.budget_alignment_score,
+                final_response.weather_suitability_score,
+                final_response.preference_match_score,
+            ]
+        )
+
+        if final_response.overall_score < 7.0 or has_subscore_failure:
             final_response.requires_revision = True
-            logger.warning("Critic score below threshold. Triggering revision loop.")
+            logger.warning(
+                f"Critic score below threshold (overall: {final_response.overall_score}, "
+                f"subscore_failure: {has_subscore_failure}). Triggering revision loop."
+            )
         else:
             final_response.requires_revision = False
             

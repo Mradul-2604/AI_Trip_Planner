@@ -153,7 +153,7 @@ class CriticReview(BaseModel):
     overall_score: float = Field(description="Overall score out of 10.")
     warnings: List[str] = Field(description="List of issues or warnings found in the plan.", default_factory=list)
     highlights: List[str] = Field(description="List of highly positive aspects of the plan.", default_factory=list)
-    requires_revision: bool = Field(description="True if overall_score < 7, requiring the itinerary agent to try again.")
+    requires_revision: bool = Field(description="True if overall_score < 7.0 or any individual subscore < 5.0, requiring the itinerary agent to try again.")
     revision_instructions: List[str] = Field(description="Specific, actionable changes for the next iteration.", default_factory=list)
 
 class RevisionRecord(BaseModel):
