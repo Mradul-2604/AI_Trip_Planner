@@ -4,7 +4,7 @@ Defines all structured inputs and outputs for the agents.
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict, Union, Literal
 from datetime import datetime
 
 class UserPreferences(BaseModel):
@@ -43,6 +43,7 @@ class Restaurant(BaseModel):
     average_cost: str = Field(description="Average cost for a meal, including currency.")
     rating: str = Field(description="Rating or popularity.")
     description: str = Field(description="Short description of the food and vibe.")
+    address: str = Field(description="Address, neighborhood, or area of the restaurant.", default="Local area")
 
 class Hotel(BaseModel):
     """Structured data for accommodation."""
@@ -50,7 +51,8 @@ class Hotel(BaseModel):
     stars: Union[str, int, float] = Field(description="Star rating or category of the hotel.")
     price_per_night: Union[str, float, int] = Field(description="Estimated price per night.")
     amenities: List[str] = Field(description="List of key amenities.", default_factory=list)
-    description: str = Field(description="Short description of the accommodation.")
+    description: str = Field(description="Short description of the accommodation.", default="Quality accommodation in destination.")
+    address: str = Field(description="Address, area, or location of the hotel in the destination.", default="")
 
     @field_validator("price_per_night", mode="before")
     @classmethod
@@ -89,7 +91,9 @@ class BudgetBreakdown(BaseModel):
 class MealInfo(BaseModel):
     """Information for a planned meal."""
     meal_type: str = Field(description="Breakfast, Lunch, or Dinner.")
+    dish_name: str = Field(description="Specific local dish, famous delicacy, or specialty for this meal (e.g., 'Poha Jalebi', 'Dal Bafla Thali', 'Bhutte ka Kees').", default="")
     restaurant_name: str = Field(description="Name of the suggested restaurant.")
+    restaurant_address: str = Field(description="Address, area, or neighborhood of the restaurant.", default="")
     estimated_cost: Union[str, float, int] = Field(description="Estimated cost of the meal. Can be a number like 300 or a string like '300 INR'.")
 
     @field_validator("estimated_cost", mode="before")
@@ -158,8 +162,14 @@ class RevisionRecord(BaseModel):
     score: float = Field(description="The overall score received in this iteration.")
     changes_made: str = Field(description="Summary of changes instructed or made.")
 
+class SupervisorDecision(BaseModel):
+    """Decision from the supervisor on how to route the user's query."""
+    intent: Literal["plan_trip", "general_chat"] = Field(description="The user's intent: 'plan_trip' to generate a new itinerary, or 'general_chat' to answer a conversational follow-up question.")
+
 class TravelPlan(BaseModel):
     """The final compiled travel plan returned to the user."""
+    intent: str = Field(description="The intent of the workflow run.", default="plan_trip")
+    chat_response: Optional[str] = Field(description="The chat response if the intent was general_chat.", default=None)
     preferences: Optional[UserPreferences] = Field(description="The user's extracted preferences.", default=None)
     weather: Optional[WeatherInfo] = Field(description="Weather forecast or fallback info.", default=None)
     budget: Optional[BudgetBreakdown] = Field(description="The structured budget breakdown.", default=None)

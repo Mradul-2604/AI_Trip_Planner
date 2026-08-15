@@ -18,10 +18,13 @@ def weather_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     if not preferences:
         return {"weather_info": None}
     
-    def build_chain(llm):
-        return llm.with_structured_output(WeatherInfo)
-    
     weather_tools = WeatherInfoTool().weather_tool_list
+    
+    def build_tool_chain(llm):
+        return llm.bind_tools(weather_tools)
+        
+    def build_structured_chain(llm):
+        return llm.with_structured_output(WeatherInfo)
     
     human_content = (
         f"Destination: {preferences.destination}\n"
@@ -34,7 +37,23 @@ def weather_agent_node(state: Dict[str, Any]) -> Dict[str, Any]:
     ]
     
     try:
-        final_response = invoke_with_fallback(build_chain, messages)
+        response_msg = invoke_with_fallback(build_tool_chain, messages)
+        messages.append(response_msg)
+        
+        tool_map = {t.name: t for t in weather_tools}
+        if hasattr(response_msg, "tool_calls") and response_msg.tool_calls:
+            for tool_call in response_msg.tool_calls:
+                tool_name = tool_call["name"]
+                tool_args = tool_call["args"]
+                if tool_name in tool_map:
+                    logger.info(f"WeatherAgent executing tool: {tool_name} with args {tool_args}")
+                    tool_result = tool_map[tool_name].invoke(tool_args)
+                    messages.append(ToolMessage(content=str(tool_result), tool_call_id=tool_call["id"]))
+            
+            final_response = invoke_with_fallback(build_structured_chain, messages)
+        else:
+            final_response = invoke_with_fallback(build_structured_chain, messages)
+            
         logger.info(f"Weather info generated. Condition: {final_response.conditions}")
         return {"weather_info": final_response, "completed_agents": ["WeatherAgent"]}
         

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PlaceDetailModal from './PlaceDetailModal'
 import './DayCard.css'
 
 const DAY_THEMES = [
@@ -8,8 +9,9 @@ const DAY_THEMES = [
   'linear-gradient(135deg, #f5a62320, #ff6b6b10)',
 ]
 
-export default function DayCard({ day, index }) {
+export default function DayCard({ day, index, destination }) {
   const [open, setOpen] = useState(true)
+  const [selectedAttraction, setSelectedAttraction] = useState(null)
 
   const {
     day_number, theme, hotel, meals = [],
@@ -51,95 +53,132 @@ export default function DayCard({ day, index }) {
     extractNumber(transport?.estimated_cost);
 
   return (
-    <div
-      className="day-card fade-in-up"
-      style={{ animationDelay: `${index * 0.12}s`, background: DAY_THEMES[index % DAY_THEMES.length] }}
-    >
-      {/* Day header — always visible */}
-      <button className="day-header" onClick={() => setOpen(o => !o)}>
-        <div className="day-number-badge">Day {day_number}</div>
-        <div className="day-header-center">
-          <h3 className="day-theme">{theme}</h3>
-          <div className="day-tags">
-            {activities.slice(0, 3).map(a => (
-              <span key={a} className="day-tag">{a}</span>
-            ))}
-          </div>
-        </div>
-        <div className="day-header-right">
-          <span className="day-cost">₹{calculatedTotal.toLocaleString()}</span>
-          <span className={`chevron ${open ? 'open' : ''}`}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </span>
-        </div>
-      </button>
-
-      {/* Collapsible body */}
-      {open && (
-        <div className="day-body">
-          {/* Hotel */}
-          <div className="day-section">
-            <div className="section-icon">🏨</div>
-            <div className="section-content">
-              <p className="section-title">Accommodation</p>
-              <p className="section-main">{hotel?.name}</p>
-              <p className="section-sub">{hotel?.price_per_night}/night · {hotel?.stars}★</p>
+    <>
+      <div
+        className="day-card fade-in-up"
+        style={{ animationDelay: `${index * 0.12}s`, background: DAY_THEMES[index % DAY_THEMES.length] }}
+      >
+        {/* Day header — always visible */}
+        <button className="day-header" onClick={() => setOpen(o => !o)}>
+          <div className="day-number-badge">Day {day_number}</div>
+          <div className="day-header-center">
+            <h3 className="day-theme">{theme}</h3>
+            <div className="day-tags">
+              {activities.slice(0, 3).map(a => (
+                <span key={a} className="day-tag">{a}</span>
+              ))}
             </div>
           </div>
+          <div className="day-header-right">
+            <span className="day-cost">₹{calculatedTotal.toLocaleString()}</span>
+            <span className={`chevron ${open ? 'open' : ''}`}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          </div>
+        </button>
 
-          {/* Attractions */}
-          <div className="day-section">
-            <div className="section-icon">📍</div>
-            <div className="section-content full">
-              <p className="section-title">Attractions</p>
-              <div className="attractions-list">
-                {attractions.map((attr, i) => (
-                  <div key={i} className="attraction-item">
-                    <span className="attr-icon">{categoryIcon(attr.place?.category)}</span>
-                    <div className="attr-info">
-                      <p className="attr-name">{attr.place?.name}</p>
-                      <p className="attr-meta">{attr.timing} · {attr.place?.entry_fee}</p>
+        {/* Collapsible body */}
+        {open && (
+          <div className="day-body">
+            {/* Hotel */}
+            <div className="day-section">
+              <div className="section-icon">🏨</div>
+              <div className="section-content">
+                <p className="section-title">Accommodation</p>
+                <p className="section-main">{hotel?.name}</p>
+                <p className="section-sub">
+                  {hotel?.price_per_night}/night · {hotel?.stars}★
+                  {hotel?.address ? ` · 📍 ${hotel.address}` : ''}
+                </p>
+              </div>
+            </div>
+
+            {/* Attractions */}
+            <div className="day-section">
+              <div className="section-icon">📍</div>
+              <div className="section-content full">
+                <div className="section-title-row">
+                  <p className="section-title">Attractions</p>
+                  <span className="section-hint">Click place to view map & info</span>
+                </div>
+                <div className="attractions-list">
+                  {attractions.map((attr, i) => (
+                    <div 
+                      key={i} 
+                      className="attraction-item attraction-clickable"
+                      onClick={() => setSelectedAttraction(attr)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedAttraction(attr); }}
+                      title="Click to view details & map"
+                    >
+                      <span className="attr-icon">{categoryIcon(attr.place?.category)}</span>
+                      <div className="attr-info">
+                        <div className="attr-name-row">
+                          <p className="attr-name">{attr.place?.name}</p>
+                          <span className="attr-view-link">View details ↗</span>
+                        </div>
+                        <p className="attr-meta">{attr.timing} · {attr.place?.entry_fee}</p>
+                      </div>
+                      <span className="attr-dur">{attr.place?.recommended_duration_hours}h</span>
                     </div>
-                    <span className="attr-dur">{attr.place?.recommended_duration_hours}h</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Meals */}
+            <div className="day-section">
+              <div className="section-icon">🍽️</div>
+              <div className="section-content full">
+                <p className="section-title">Meals & Local Delicacies</p>
+                <div className="meals-grid">
+                  {meals.map((m, i) => (
+                    <div key={i} className="meal-item">
+                      <span className="meal-icon">{mealIcon(m.meal_type)}</span>
+                      <div className="meal-info">
+                        <div className="meal-header-row">
+                          <p className="meal-type">{m.meal_type}</p>
+                          {m.restaurant_address && (
+                            <span className="meal-address">📍 {m.restaurant_address}</span>
+                          )}
+                        </div>
+                        {m.dish_name && (
+                          <p className="meal-dish">🍲 {m.dish_name}</p>
+                        )}
+                        <p className="meal-name">{m.restaurant_name}</p>
+                      </div>
+                      <span className="meal-cost">{m.estimated_cost}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Transport */}
+            <div className="day-section">
+              <div className="section-icon">🚗</div>
+              <div className="section-content">
+                <p className="section-title">Transport</p>
+                <p className="section-main">{transport?.mode}</p>
+                <p className="section-sub">{transport?.estimated_cost}</p>
               </div>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Meals */}
-          <div className="day-section">
-            <div className="section-icon">🍽️</div>
-            <div className="section-content full">
-              <p className="section-title">Meals</p>
-              <div className="meals-grid">
-                {meals.map((m, i) => (
-                  <div key={i} className="meal-item">
-                    <span className="meal-icon">{mealIcon(m.meal_type)}</span>
-                    <div className="meal-info">
-                      <p className="meal-type">{m.meal_type}</p>
-                      <p className="meal-name">{m.restaurant_name}</p>
-                    </div>
-                    <span className="meal-cost">{m.estimated_cost}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Transport */}
-          <div className="day-section">
-            <div className="section-icon">🚗</div>
-            <div className="section-content">
-              <p className="section-title">Transport</p>
-              <p className="section-main">{transport?.mode}</p>
-              <p className="section-sub">{transport?.estimated_cost}</p>
-            </div>
-          </div>
-        </div>
+      {/* Place Detail Modal */}
+      {selectedAttraction && (
+        <PlaceDetailModal
+          attraction={selectedAttraction}
+          destination={destination}
+          onClose={() => setSelectedAttraction(null)}
+        />
       )}
-    </div>
+    </>
   )
 }
+

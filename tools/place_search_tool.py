@@ -21,10 +21,22 @@ class PlaceSearchTool:
             return f"Following are the attractions of {place}: {tavily_result}"
 
         @tool
+        def search_hotels(place: str) -> str:
+            """Search real hotels and accommodations located strictly in the destination"""
+            tavily_result = self.tavily_search.tavily_search_hotels(place)
+            return f"Following are real hotels located in {place}: {tavily_result}"
+
+        @tool
         def search_restaurants(place: str) -> str:
             """Search restaurants of a place"""
             tavily_result = self.tavily_search.tavily_search_restaurants(place)
             return f"Following are the restaurants of {place}: {tavily_result}"
+
+        @tool
+        def search_local_food(place: str) -> str:
+            """Search famous local dishes, specialties, street food, and must-try delicacies of a place"""
+            tavily_result = self.tavily_search.tavily_search_local_food(place)
+            return f"Following are famous local food and delicacies of {place}: {tavily_result}"
 
         @tool
         def search_activities(place: str) -> str:
@@ -38,4 +50,4 @@ class PlaceSearchTool:
             tavily_result = self.tavily_search.tavily_search_transportation(place)
             return f"Following are the modes of transportation available in {place}: {tavily_result}"
 
-        return [search_attractions, search_restaurants, search_activities, search_transportation]
+        return [search_attractions, search_hotels, search_restaurants, search_local_food, search_activities, search_transportation]

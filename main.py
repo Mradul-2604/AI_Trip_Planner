@@ -111,6 +111,8 @@ async def plan_trip_stream(request: PlanRequest):
             # Compile TravelPlan
             if final_state:
                 plan = TravelPlan(
+                    intent=final_state.get("intent", "plan_trip"),
+                    chat_response=final_state.get("chat_response"),
                     preferences=final_state.get("preferences"),
                     weather=final_state.get("weather_info"),
                     budget=final_state.get("budget_breakdown"),

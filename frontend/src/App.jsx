@@ -36,7 +36,8 @@ export default function App() {
     // Reset state for new query
     setLoading(true)
     setError(null)
-    setPlan(null)
+    // We intentionally DO NOT reset setPlan(null) here, so the user can see their existing trip
+    // while asking a follow-up question. If a new trip is generated, it will overwrite the plan later.
     setAgents([])
     setCurrentAgent(null)
 
@@ -83,8 +84,13 @@ export default function App() {
 
             if (status === 'done') {
               setCurrentAgent(null)
-              setAgents(AGENT_ORDER)
-              setPlan(data)
+              if (data.intent === 'general_chat' && data.chat_response) {
+                const botMsg = { role: 'assistant', content: data.chat_response, id: Date.now() }
+                setMessages(prev => [...prev, botMsg])
+              } else {
+                setAgents(AGENT_ORDER)
+                setPlan(data)
+              }
               setLoading(false)
             }
 
@@ -120,23 +126,40 @@ export default function App() {
           loading={loading}
         />
 
-        {plan?.budget && (
-          <div className="sidebar-budget">
-            <p className="sidebar-budget-label">Trip Budget Used</p>
-            <div className="budget-bar-track">
-              <div
-                className="budget-bar-fill"
-                style={{
-                  width: `${Math.min(100, (plan.budget.total_estimated / (plan.preferences?.total_budget || plan.budget.total_estimated)) * 100)}%`
-                }}
-              />
+        {plan && (() => {
+          const extractNumber = (str) => {
+            if (!str) return 0
+            if (typeof str === 'number') return str
+            const match = String(str).match(/[\d,.]+/)
+            return match ? parseFloat(match[0].replace(/,/g, '')) : 0
+          }
+          const actualTotal = (plan.itinerary || []).reduce((total, day) => {
+            const hotelCost = extractNumber(day.hotel?.price_per_night)
+            const attrCost = (day.attractions || []).reduce((sum, a) => sum + extractNumber(a.place?.entry_fee), 0)
+            const mealCost = (day.meals || []).reduce((sum, m) => sum + extractNumber(m.estimated_cost), 0)
+            const transportCost = extractNumber(day.transport?.estimated_cost)
+            return total + hotelCost + attrCost + mealCost + transportCost
+          }, 0) || plan.budget?.total_estimated || 0
+          const maxBudget = plan.preferences?.total_budget || actualTotal || 1
+
+          return (
+            <div className="sidebar-budget">
+              <p className="sidebar-budget-label">Trip Budget Used</p>
+              <div className="budget-bar-track">
+                <div
+                  className="budget-bar-fill"
+                  style={{
+                    width: `${Math.min(100, (actualTotal / maxBudget) * 100)}%`
+                  }}
+                />
+              </div>
+              <div className="budget-bar-values">
+                <span>₹{actualTotal.toLocaleString()}</span>
+                <span className="text-muted">/ ₹{plan.preferences?.total_budget?.toLocaleString()}</span>
+              </div>
             </div>
-            <div className="budget-bar-values">
-              <span>₹{plan.budget.total_estimated?.toLocaleString()}</span>
-              <span className="text-muted">/ ₹{plan.preferences?.total_budget?.toLocaleString()}</span>
-            </div>
-          </div>
-        )}
+          )
+        })()}
       </aside>
 
       {/* ── Main Content ── */}

@@ -7,8 +7,10 @@ from typing import Dict, Any, Optional
 
 def summarize_for_itinerary(
     research: Optional[Dict[str, Any]],
-    weather,  # WeatherInfo pydantic model or None
-    budget,   # BudgetBreakdown pydantic model or None
+    weather,        # WeatherInfo pydantic model or None
+    budget,         # BudgetBreakdown pydantic model or None
+    user_budget: Optional[float] = None,       # Original user-stated budget
+    user_currency: Optional[str] = None,
 ) -> str:
     """
     Returns a compact, token-efficient summary string for the ItineraryAgent prompt.
@@ -21,26 +23,45 @@ def summarize_for_itinerary(
     """
     lines = []
 
-    # ── Places (top 5) ────────────────────────────────────────────────────────
+    # ── Places, Hotels, Foods & Restaurants ──────────────────────────────────
     if research:
-        places = research.get("places", [])[:5]
+        hotels = research.get("hotels", [])[:5]
+        if hotels:
+            lines.append("TOP VERIFIED HOTELS IN DESTINATION (USE ONLY THESE):")
+            for h in hotels:
+                name = h.get("name", "Unknown")
+                stars = h.get("stars", "3")
+                price = h.get("price_per_night", "₹2500")
+                addr = h.get("address", "City Center")
+                lines.append(f"  - {name} ({stars}★, ~{price}/night, address: {addr})")
+
+        places = research.get("places", [])[:8]
         if places:
-            lines.append("TOP PLACES:")
+            lines.append("TOP PLACES (MUST USE ONLY THESE IN ITINERARY):")
             for p in places:
                 name = p.get("name", "Unknown")
                 fee = p.get("entry_fee", "Free")
+                category = p.get("category", "attraction")
                 duration = p.get("recommended_duration_hours", "")
+                desc = p.get("description", "")
                 duration_str = f", {duration}h" if duration else ""
-                lines.append(f"  - {name} (entry: {fee}{duration_str})")
+                lines.append(f"  - {name} [Category: {category}] (entry: {fee}{duration_str}) - {desc}")
 
-        restaurants = research.get("restaurants", [])[:3]
+        famous_foods = research.get("famous_local_dishes", [])
+        if famous_foods:
+            lines.append("FAMOUS LOCAL CUISINE & MUST-TRY DISHES (FEATURE THESE IN MEALS):")
+            for f in famous_foods:
+                lines.append(f"  - {f}")
+
+        restaurants = research.get("restaurants", [])[:6]
         if restaurants:
-            lines.append("TOP RESTAURANTS:")
+            lines.append("TOP RESTAURANTS (MUST USE ONLY THESE WITH ADDRESSES IN ITINERARY):")
             for r in restaurants:
                 name = r.get("name", "Unknown")
                 cuisine = r.get("cuisine", "")
                 cost = r.get("average_cost", "")
-                lines.append(f"  - {name} ({cuisine}, avg: {cost})")
+                address = r.get("address", "Local area")
+                lines.append(f"  - {name} (cuisine: {cuisine}, avg cost: {cost}, address: {address})")
 
     # ── Weather (one line) ────────────────────────────────────────────────────
     if weather:
@@ -61,6 +82,8 @@ def summarize_for_itinerary(
         currency = getattr(budget, "currency", "")
         within = getattr(budget, "is_within_budget", True)
         lines.append(f"BUDGET LIMIT: {total} {currency} ({'within budget' if within else 'OVER BUDGET'}).")
+        if user_budget and user_currency:
+            lines.append(f"USER'S ORIGINAL BUDGET: {user_budget} {user_currency} — The itinerary MUST use this full budget, not less.")
         if not within:
             suggestions = getattr(budget, "adjustment_suggestions", [])[:2]
             if suggestions:

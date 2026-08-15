@@ -14,6 +14,25 @@ export default function PlanCard({ plan }) {
     return '🌤️'
   }
 
+  const extractNumber = (str) => {
+    if (!str) return 0
+    if (typeof str === 'number') return str
+    const match = String(str).match(/[\d,.]+/)
+    return match ? parseFloat(match[0].replace(/,/g, '')) : 0
+  }
+
+  const calculatedTotal = itinerary.reduce((total, day) => {
+    const hotelCost = extractNumber(day.hotel?.price_per_night)
+    const attrCost = (day.attractions || []).reduce((sum, a) => sum + extractNumber(a.place?.entry_fee), 0)
+    const mealCost = (day.meals || []).reduce((sum, m) => sum + extractNumber(m.estimated_cost), 0)
+    const transportCost = extractNumber(day.transport?.estimated_cost)
+    return total + hotelCost + attrCost + mealCost + transportCost
+  }, 0)
+
+  const displayTotal = calculatedTotal > 0 ? calculatedTotal : (budget?.total_estimated || 0)
+  const userBudget = preferences?.total_budget || 0
+  const isWithin = userBudget > 0 ? displayTotal <= userBudget : (budget?.is_within_budget ?? true)
+
   return (
     <div className="plan-card">
       {/* Header */}
@@ -40,17 +59,15 @@ export default function PlanCard({ plan }) {
           </div>
         </div>
 
-        {budget && (
-          <div className="plan-budget-pill">
-            <span className="budget-pill-label">Total Cost</span>
-            <span className="budget-pill-value">
-              ₹{budget.total_estimated?.toLocaleString()}
-            </span>
-            <span className={`budget-status ${budget.is_within_budget ? 'within' : 'over'}`}>
-              {budget.is_within_budget ? '✓ Within budget' : '⚠ Over budget'}
-            </span>
-          </div>
-        )}
+        <div className="plan-budget-pill">
+          <span className="budget-pill-label">Total Cost</span>
+          <span className="budget-pill-value">
+            ₹{displayTotal.toLocaleString()}
+          </span>
+          <span className={`budget-status ${isWithin ? 'within' : 'over'}`}>
+            {isWithin ? '✓ Within budget' : '⚠ Over budget'}
+          </span>
+        </div>
       </div>
 
       {/* Day cards */}
@@ -65,7 +82,7 @@ export default function PlanCard({ plan }) {
           </div>
         ) : (
           itinerary.map((day, i) => (
-            <DayCard key={day.day_number} day={day} index={i} />
+            <DayCard key={day.day_number} day={day} index={i} destination={preferences?.destination} />
           ))
         )}
       </div>

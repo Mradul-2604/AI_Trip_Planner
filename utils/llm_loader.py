@@ -19,7 +19,7 @@ def get_fallback_llm():
     google_api_key = os.getenv("GOOGLE_API_KEY")
     if not google_api_key:
         logger.warning("GOOGLE_API_KEY is not set.")
-    return ChatGoogleGenerativeAI(model="gemini-2.0-flash", api_key=google_api_key, temperature=0.0)
+    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=google_api_key, temperature=0.0)
 
 def _sanitize_messages(args: tuple) -> tuple:
     """

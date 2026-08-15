@@ -22,6 +22,7 @@ from agent.weather_agent import weather_agent_node
 from agent.budget_agent import budget_agent_node
 from agent.itinerary_agent import itinerary_agent_node
 from agent.critic_agent import critic_agent_node
+from agent.chat_agent import chat_agent_node
 from memory.short_term import get_checkpointer
 
 
@@ -45,6 +46,8 @@ def append_history(left: List[RevisionRecord], right: List[RevisionRecord]) -> L
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     query: str                                            # extracted by Supervisor
+    intent: str
+    chat_response: Optional[str]
     past_context: str
     preferences: Optional[UserPreferences]
     research_data: Optional[Dict[str, Any]]
@@ -94,6 +97,11 @@ def reflection_router(state: AgentState) -> str:
         return "ItineraryAgent"
     return END
 
+def intent_router(state: AgentState) -> str:
+    """Decide where to go after Supervisor based on intent."""
+    if state.get("intent") == "general_chat":
+        return "ChatAgent"
+    return "PreferenceExtractor"
 
 # ── Graph ─────────────────────────────────────────────────────────────────────
 
@@ -112,13 +120,22 @@ class GraphBuilder:
         workflow.add_node("BudgetAgent", budget_agent_node)
         workflow.add_node("ItineraryAgent", itinerary_agent_node)
         workflow.add_node("CriticAgent", critic_agent_wrapper)
+        workflow.add_node("ChatAgent", chat_agent_node)
 
-        # ── Fixed linear pipeline ──────────────────────────────────────────
-        # Supervisor runs ONCE, then agents run sequentially.
-        # Supervisor is kept in the graph for its query-parsing role
-        # (reads messages → sets query context) but does NOT re-run between agents.
+        # ── Routing Logic ──────────────────────────────────────────
         workflow.add_edge(START, "Supervisor")
-        workflow.add_edge("Supervisor", "PreferenceExtractor")
+        
+        workflow.add_conditional_edges(
+            "Supervisor",
+            intent_router,
+            {
+                "PreferenceExtractor": "PreferenceExtractor",
+                "ChatAgent": "ChatAgent"
+            }
+        )
+        
+        workflow.add_edge("ChatAgent", END)
+
         workflow.add_edge("PreferenceExtractor", "ResearchAgent")
         workflow.add_edge("ResearchAgent", "WeatherAgent")
         workflow.add_edge("WeatherAgent", "BudgetAgent")
